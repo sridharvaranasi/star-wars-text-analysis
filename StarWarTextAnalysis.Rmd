@@ -1,0 +1,464 @@
+---
+title: "StarWarsDataAnalysis"
+author: "Sridhar Varanasi"
+date: "May 11, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r load libraries}
+library(ggplot2)
+library(dplyr)
+library(tidytext)
+library(tidyr)
+library(tm)
+library(wordcloud)
+library(wordcloud2)
+library(reshape2)
+```
+
+In this data analysis project I will be analysing the dialogues of few characters from star wars episode 4,5 and 6. Each of the dataset is in form of text file and has 2 columns thr character name and the dialogue spoke by that character. To start things off I will first load the data from the text files into 3 different datasets.
+
+```{r load data}
+ep4<-read.table('SW_EpisodeIV.txt')
+ep5<-read.table('SW_EpisodeV.txt')
+ep6<-read.table('SW_EpisodeVI.txt')
+```
+
+I will first analyze episode 4 data. 
+
+To do this analysis I will do the below steps to create wordcloud of the words in the episode 4
+
+- Create a corpus of words from the column in the dataframe on which we want to create wordcloud
+
+- Clean the corpus by applying the below functions from base R and tm package.
+
+  - removePunctuation() This function is used to remove punctuations.
+  - stripWhitespace(). Remove excess whitespace
+  - tolower(). Make all characters lowercase
+  - removeWords(). Remove some common English stop words ("I", "she'll", "the", etc.)
+  - removeNumbers(). Remove numbers
+
+- Once the corpus has been cleaned conver this to a document term matrix which will be used for analysis
+
+- Remove sparse terms from the document term matrix to make the DTM feasible for analysis
+
+- Convert the above Document term matrix to a Matrix in R
+
+- Conver the MAtrix from the above step to a Data frame with columns word and word frequency
+
+- Create a word cloud on the dataframe createdd above
+
+
+So to do all these steps I will create 2 functions
+
+**cleancorpus** which will have all the functions used to clean the corpus
+
+**createterms** which will create a function which takes the column on which we intend to create wordcloud and gives output a dataframe which contains word and word frequency.
+
+And finally we can use the output of the **createterms** function to create wordcloud
+
+
+So to begin with, I will be creating **cleancorpus** function
+
+
+```{r corpus clean function}
+
+#creating a vector of words which are stopwords
+
+stop_words<-c(stopwords("english"),c("thats","weve","hes","theres","ive","will","can","cant","dont","youve","youre","youll","theyre","whats","didnt","us"))
+
+#creating  clean corpus function
+
+cleancorpus<- function(corpus){
+
+#removes punctuation
+  
+corpus <- tm_map(corpus,removePunctuation)
+
+#removes whitespaces
+
+corpus <- tm_map(corpus,stripWhitespace)
+
+#converts all strings to lowercase
+
+corpus <- tm_map(corpus,content_transformer(tolower))
+
+#removes stopwords
+
+corpus <- tm_map(corpus,removeWords,stop_words)
+
+#removes numbers
+
+corpus <- tm_map(corpus,removeNumbers)
+
+#returns clean corpus
+
+return(corpus)
+}
+
+```
+
+
+Creating a createterms functions 
+
+```{r createterms}
+
+
+createterms <- function(text){
+
+#creating createterms function , it takes text column as input and gives a dataframe with term and term frequency as outut  
+
+#creating a corpus from the text column 
+  
+df_corp <- VCorpus(VectorSource(text))  
+
+#Cleaning the corpus using the cleancorpus function
+
+df_corp_clean <- cleancorpus(df_corp)
+
+#Creating a  term document matrix
+
+df_tdm <- TermDocumentMatrix(df_corp_clean)
+
+#Removing sparse terms from the TermDocumentMatrix
+
+df_tdm <- removeSparseTerms(df_tdm,sparse = 0.99)
+
+#Converting the TermDocumentMatrix to a Matrix in R
+
+df_m <- as.matrix(df_tdm)
+  
+#convering matrix to data frame with terms and term frequency  
+
+word_freq = sort(rowSums(df_m), decreasing=T)
+
+df <- data.frame(word = names(word_freq),freq = word_freq)
+
+
+#return the dataframe 
+return(df)
+
+}
+
+```
+
+Generating word cloud in R using the createterms function.
+
+```{r creating wordcloud episode 4}
+wordcloud2(createterms(ep4$dialogue),size=0.6, shape = 'star')
+```
+
+
+Now let's look at the number of dialogues spoken by each character in episode 4 of star wars.
+
+```{r}
+#look at the structure of the dataframe
+
+str(ep4)
+
+```
+
+Both the columns are of factor data type, I will be converting these into character data types.
+
+```{r}
+
+#converting columns to character
+
+ep4$character <- as.character(ep4$character)
+ep4$dialogue <- as.character(ep4$dialogue)
+
+#checking if the conversion has been applied successfully.
+
+str(ep4)
+```
+
+Now, I will find out the number of dialogues for each character and before doing that I want to check number of characters in episode 4
+
+
+```{r}
+
+#number of unique characters in star wars episode 4
+
+length(unique(ep4$character))
+
+```
+
+There are 60 characters in episode 4. Now Let's proceed to find out the characters with most number of dialogues.
+
+```{r}
+
+ep4%>%
+  group_by(character)%>%
+  count()%>%
+  ungroup()%>%
+  arrange(desc(n))%>%
+  top_n(15,n)%>%
+  ggplot(aes(reorder(character,n),n,fill=character))+
+  geom_col(show.legend = F)+
+  coord_flip()+
+  labs(x="Number of dialogues" , y="Character Name" , title ="Number of dialogues for each character in Episode 4")
+
+```
+
+I will repeat the same steps for doing analysis on the episode 5 of star wars.
+
+```{r creating wordcloud episode 5}
+wordcloud2(createterms(ep5$dialogue),size=0.3, shape = 'star')
+
+```
+
+
+
+
+
+Now let's look at the number of dialogues spoken by each character in episode 5 of star wars.
+
+```{r}
+#look at the structure of the dataframe
+
+str(ep5)
+
+```
+
+Both the columns are of factor data type, I will be converting these into character data types.
+
+```{r}
+
+#converting columns to character
+
+ep5$character <- as.character(ep5$character)
+ep5$dialogue <- as.character(ep5$dialogue)
+
+#checking if the conversion has been applied successfully.
+
+str(ep5)
+```
+
+Now, I will find out the number of dialogues for each character and before doing that I want to check number of characters in episode 5
+
+
+```{r}
+
+#number of unique characters in star wars episode 5
+
+length(unique(ep5$character))
+
+```
+
+There are 49 unique characters in episode 5. Now Let's proceed to find out the characters with most number of dialogues.
+
+```{r}
+
+ep5%>%
+  group_by(character)%>%
+  count()%>%
+  ungroup()%>%
+  arrange(desc(n))%>%
+  top_n(15,n)%>%
+  ggplot(aes(reorder(character,n),n,fill=character))+
+  geom_col(show.legend = F)+
+  coord_flip()+
+  labs(x="Number of dialogues" , y="Character Name" , title ="Number of dialogues for each character in Episode 5")
+
+```
+
+Creating word loud and doing text analysis on episode 6.
+
+```{r creating wordcloud episode 6}
+wordcloud2(createterms(ep6$dialogue),size=0.4, shape = 'star')
+
+```
+
+
+
+
+
+Now let's look at the number of dialogues spoken by each character in episode 6 of star wars.
+
+```{r}
+#look at the structure of the dataframe
+
+str(ep6)
+
+```
+
+Both the columns are of factor data type, I will be converting these into character data types.
+
+```{r}
+
+#converting columns to character
+
+ep6$character <- as.character(ep6$character)
+ep6$dialogue <- as.character(ep6$dialogue)
+
+#checking if the conversion has been applied successfully.
+
+str(ep6)
+```
+
+Now, I will find out the number of dialogues for each character and before doing that I want to check number of characters in episode 6
+
+
+```{r}
+
+#number of unique characters in star wars episode 6
+
+length(unique(ep6$character))
+
+```
+
+There are 53 unique characters in episode 6. Now Let's proceed to find out the characters with most number of dialogues.
+
+```{r}
+
+ep6%>%
+  group_by(character)%>%
+  count()%>%
+  ungroup()%>%
+  arrange(desc(n))%>%
+  top_n(15,n)%>%
+  ggplot(aes(reorder(character,n),n,fill=character))+
+  geom_col(show.legend = F)+
+  coord_flip()+
+  labs(x="Number of dialogues" , y="Character Name" , title ="Number of dialogues for each character in Episode 6")
+
+```
+
+
+Now I want do some analysis on the words present in the text.
+
+```{r}
+
+#adding filename variable in the episode data frame
+
+ep4$episode <- 'ep4'
+ep5$episode <- 'ep5'
+ep6$episode <- 'ep6'
+#combining all the 3 dataframes into 1
+
+ep_full<- rbind(ep4,ep5,ep6)
+```
+
+Now to do text analysis I will break each word into a token by using **unnest_tokens** function from the tidytext package in R.
+
+```{r}
+
+ep_full_tokens<-ep_full%>%
+  unnest_tokens(word,dialogue)
+
+```
+
+Now I will remove the stopwords from the tokens by using an anti_join on **ep_full_tokens** with **stop_words** dataframe. Then I will Join this with **Bing** lexicon to get the sentiment of words. 
+
+Since, **bing** lexicon gives the 
+I will use this to create a comparison cloud which help in understanding the most commonly used positive and negative words. 
+
+
+
+```{r}
+#creating stopword dataframe  from the stop_words vector
+
+stopword<-data.frame(word=stop_words)
+```
+
+```{r}
+ep_full_tokens%>%
+  anti_join(stopword, by ="word")%>%
+  inner_join(get_sentiments("bing"),by="word")%>%
+  count(word,sentiment,sort = TRUE)%>%
+  acast(word~sentiment , value.var="n" , fill = 0)%>%
+  comparison.cloud(colors = c("#FF4C4C","#99FF99"),max.words = 100)
+
+```
+
+
+Let's see which episode has more positve and negative words.
+
+```{r}
+
+ep_bing<-ep_full_tokens%>%
+  anti_join(stopword, by ="word")%>%
+  inner_join(get_sentiments("bing"),by="word")%>%
+  count(episode,sentiment,sort = TRUE)
+
+
+```
+
+Converting the dataframe to wide format to get the ratio of positive to negative words in each episode.
+
+```{r}
+ep_bing_wide<-dcast(ep_bing,episode~sentiment, value.var = "n")
+
+```
+
+Creating a variable with positive to negative word ratio.
+
+```{r}
+ep_bing_wide%>%
+  mutate(positivetonegativeratio= positive/negative)
+```
+
+It seems that as the episodes are progressing the ratio of positive words to negative words is increasing.
+
+Now I want to analyze the positive to negative words ratio for each character in all the episodes.
+
+```{r}
+
+character_bing<-ep_full_tokens%>%
+  anti_join(stopword, by ="word")%>%
+  inner_join(get_sentiments("bing"),by="word")%>%
+  count(character,sentiment,sort = TRUE)%>%
+  dcast(character~sentiment, value.var = "n",fill = -1)%>%
+  mutate(positivetonegativeratio=positive/negative)%>%
+  filter(positivetonegativeratio>0)%>%
+  arrange(desc(positivetonegativeratio))
+
+
+```
+
+Creature and Trooper are the characters who have spoken more number of positive words as compared to negative words. 
+Whereas, Ackbar and Mon Mothama have spoken more number of negative words than positive words.
+
+Next I want to visualize how the trend of positive and negative words changes throuhput each of the episodes.
+
+
+```{r}
+#creating line number variable for each line in each episode
+
+tidy_episode <- ep_full%>%
+  group_by(episode)%>%
+  mutate(linenumber= row_number())%>%
+  ungroup()%>%
+  unnest_tokens(word,dialogue)
+```
+
+```{r}
+#creating an index variable which defines different subsegments of the episode
+
+tidy_episode_sentiment <- tidy_episode%>%
+  mutate(index= linenumber%/% 10)
+
+```
+```{r}
+
+#Plotting the trend of sentiment flow in each of the star wars episodes
+
+tidy_episode_sentiment%>%
+  anti_join(stopword, by ="word")%>%
+  inner_join(get_sentiments("bing"),by="word")%>%
+  count(episode,index,sentiment)%>%
+  spread(sentiment,n,fill=0)%>%
+#finding the difference net sentiment
+mutate(net_sentiment=positive-negative)%>%
+ggplot(aes(index,net_sentiment,fill=episode))+
+geom_col(show.legend = F)+
+facet_wrap(~episode , ncol=2 , scales="free_x")+
+labs(x="Subsegments of the episodes",y="sentiment flow throughout each episode",
+     title="Sentiment flow throughout the episode for different episodes")
+
+
+```
